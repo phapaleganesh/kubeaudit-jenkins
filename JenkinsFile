@@ -1,0 +1,66 @@
+pipeline {
+    agent any
+    
+    stages {
+        stage('GIT CHECKOUT') {
+          steps {
+              git branch: "main",
+              credentialsId: 'kubeaudit-jenkins-repo',
+              url: 'git@github.com:phapaleganesh/kubeaudit-jenkins.git'
+          }
+        }
+        stage('KUBEAUDIT') {
+            steps {
+                // Check Kubeaudit is available or not
+                sh '/usr/local/bin/kubeaudit version'
+                //sh 'cat password-generator-deploy.yaml'
+
+                // Run kubeaudit
+                script {
+                    def auditResult = sh(script: '/usr/local/bin/kubeaudit all -f password-generator-deploy.yaml', returnStatus: true)
+                
+                    // Check the result of kubeaudit
+                    if (auditResult == 0) {
+                        echo 'Kubernetes manifest files passed kubeaudit successfully. Proceeding with deployment...'
+                    }   
+                    // else {
+                    // error 'Kubernetes manifest files failed kubeaudit.There is security breaches in your deployment. Halting deployment!'
+                    // }
+                    else {
+                        echo 'Kubernetes deployment manifest files failed kubeaudit. Attempting autofix on deployment manifest file...'
+                        // Attempt to autofix the manifest file
+                        def autofixResult = sh(script: '/usr/local/bin/kubeaudit autofix -f password-generator-deploy.yaml', returnStatus: true)
+                        if (autofixResult == 0) {
+                            //sh 'cat password-generator-deploy.yaml'
+                            echo 'Autofix applied successfully. Deployment manifest is secure. Proceeding with deployment...'
+                        } 
+                        else {
+                        error 'Failed to apply autofix. Deployment halted.'
+                        }
+                    }
+               }
+           }
+        }
+        
+        stage('Deploy') {
+            steps {
+                // Deploy your Kubernetes manifest file
+                // Replace this with your deployment command
+                //sh 'kubectl apply -f your_manifest_file.yaml'
+                sh '/usr/local/bin/kubectl apply -f .'
+                sh '/usr/local/bin/kubectl get all'
+                //sh '/usr/local/bin/kubectl port-forward service/password-generator-svc 8086:80'
+                echo 'Application Deployment successful!'
+            }
+        }
+    }
+        post {
+        success {
+            echo 'Deployment successful'
+        }
+        failure {
+            echo 'Deployment failed'
+        }
+    }
+    
+}
