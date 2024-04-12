@@ -14,9 +14,12 @@ pipeline {
                 // Check Kubeaudit is available or not
                 sh '/usr/local/bin/kubeaudit version'
                 //sh 'cat password-generator-deploy.yaml'
+                echo 'Deployment manifest before the kubeaudit...'
+                sh 'cat password-generator-deploy.yaml'
 
                 // Run kubeaudit
                 script {
+                    echo 'Running Kuneaudit on Deployment Manifest'
                     def auditResult = sh(script: '/usr/local/bin/kubeaudit all -f password-generator-deploy.yaml', returnStatus: true)
                 
                     // Check the result of kubeaudit
@@ -32,7 +35,10 @@ pipeline {
                         def autofixResult = sh(script: '/usr/local/bin/kubeaudit autofix -f password-generator-deploy.yaml', returnStatus: true)
                         if (autofixResult == 0) {
                             //sh 'cat password-generator-deploy.yaml'
-                            echo 'Autofix applied successfully. Deployment manifest is secure. Proceeding with deployment...'
+                            echo 'Autofix applied successfully.Deployment manifest is secure.'
+                            echo 'Deployment File after the kubeaudit Autofix...'
+                            sh 'cat password-generator-deploy.yaml'
+                            echo 'Proceeding with deployment...'
                         } 
                         else {
                         error 'Failed to apply autofix. Deployment halted.'
